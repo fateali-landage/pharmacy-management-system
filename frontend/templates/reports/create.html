@@ -1,0 +1,541 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <div class="mb-6">
+    <a href="{{ url_for('reports.reports') }}" class="inline-flex items-center text-cyan-600 hover:text-cyan-800 mb-4">
+      <span class="material-symbols-outlined text-lg mr-1">arrow_back</span>
+      {{ _('back_to_reports') }}
+    </a>
+    <h2 class="text-2xl font-bold text-gray-800">{{ _('create_new_report') }}</h2>
+    <p class="text-gray-600">{{ _('create_report_description') }}</p>
+  </div>
+
+  <div class="card p-6">
+    <form action="{{ url_for('reports.reports_create') }}" method="POST" class="space-y-6">
+      <!-- Report Title -->
+      <div class="space-y-2">
+        <label for="report_title" class="block text-sm font-medium text-gray-700">{{ _('report_title') }}</label>
+        <input type="text" id="report_title" name="title" required 
+               class="w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+               placeholder="{{ _('enter_report_title') }}">
+      </div>
+
+      <!-- Report Type -->
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-gray-700">{{ _('report_type') }}</label>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="relative">
+            <input class="sr-only peer" type="radio" name="report_type" id="inventory_report" value="inventory" checked>
+            <label for="inventory_report" class="flex flex-col p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-cyan-500 peer-checked:ring-1 peer-checked:ring-cyan-500">
+              <div class="flex items-center">
+                <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0 mr-3"></div>
+                <span class="font-medium text-gray-900">{{ _('inventory_report') }}</span>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">{{ _('inventory_report_description') }}</p>
+            </label>
+          </div>
+          
+          <div class="relative">
+            <input class="sr-only peer" type="radio" name="report_type" id="expiry_report" value="expiry">
+            <label for="expiry_report" class="flex flex-col p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-cyan-500 peer-checked:ring-1 peer-checked:ring-cyan-500">
+              <div class="flex items-center">
+                <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0 mr-3"></div>
+                <span class="font-medium text-gray-900">{{ _('expiry_report') }}</span>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">{{ _('expiry_report_description') }}</p>
+            </label>
+          </div>
+          
+          <div class="relative">
+            <input class="sr-only peer" type="radio" name="report_type" id="custom_report" value="custom">
+            <label for="custom_report" class="flex flex-col p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 peer-checked:border-cyan-500 peer-checked:ring-1 peer-checked:ring-cyan-500">
+              <div class="flex items-center">
+                <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0 mr-3"></div>
+                <span class="font-medium text-gray-900">{{ _('custom_report') }}</span>
+              </div>
+              <p class="text-sm text-gray-500 mt-1">{{ _('custom_report_description') }}</p>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Medicine Selection -->
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <label class="block text-sm font-medium text-gray-700">{{ _('select_medicines') }}</label>
+          <button type="button" id="showAllMedicines" class="text-sm text-cyan-600 hover:text-cyan-800">
+            {{ _('view_all_medicines') }}
+          </button>
+        </div>
+        
+        <!-- Search Box -->
+        <div class="relative">
+          <input type="text" id="medicineSearch" 
+                 class="w-full rounded-md border-gray-300 shadow-sm pl-10 focus:border-cyan-500 focus:ring-cyan-500"
+                 placeholder="{{ _('search_medicines_placeholder') }}">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span class="material-symbols-outlined text-gray-400">search</span>
+          </div>
+        </div>
+
+        <!-- Selected Medicines -->
+        <div id="selectedMedicines" class="space-y-2 mt-3">
+          <p class="text-sm text-gray-500">{{ _('no_medicines_selected') }}</p>
+        </div>
+
+        <!-- Statistics Summary -->
+        <div id="statsSummary" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+          <h4 class="font-medium text-gray-900 mb-2">{{ _('summary') }}</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="text-center p-3 bg-white rounded shadow">
+              <div class="text-2xl font-bold text-cyan-600" id="totalItems">0</div>
+              <div class="text-sm text-gray-500">{{ _('total_items') }}</div>
+            </div>
+            <div class="text-center p-3 bg-white rounded shadow">
+              <div class="text-2xl font-bold text-green-600" id="totalStock">0</div>
+              <div class="text-sm text-gray-500">{{ _('total_stock') }}</div>
+            </div>
+            <div class="text-center p-3 bg-white rounded shadow">
+              <div class="text-2xl font-bold text-purple-600" id="totalValue">$0.00</div>
+              <div class="text-sm text-gray-500">{{ _('total_value') }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Medicine Selection Modal -->
+        <div id="medicineModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+          <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+              <h3 class="text-lg font-medium">{{ _('select_medicines') }}</h3>
+              <button type="button" id="closeModal" class="text-gray-400 hover:text-gray-500">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div class="p-4 border-b">
+              <div class="relative">
+                <input type="text" id="modalSearch" 
+                       class="w-full rounded-md border-gray-300 shadow-sm pl-10 focus:border-cyan-500 focus:ring-cyan-500"
+                       placeholder="{{ _('search_medicines_placeholder') }}">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="material-symbols-outlined text-gray-400">search</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="overflow-y-auto flex-1 p-4">
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ _('select') }}</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ _('medicine') }}</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ _('category') }}</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ _('stock') }}</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ _('price') }}</th>
+                      <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{{ _('value') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody id="medicineList" class="bg-white divide-y divide-gray-200">
+                    {% for medicine in medicines %}
+                    <tr class="medicine-item hover:bg-gray-50 cursor-pointer" data-id="{{ medicine.id }}">
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <input type="checkbox" class="h-4 w-4 text-cyan-600 focus:ring-cyan-500 border-gray-300 rounded">
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ medicine.name }}</div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">{{ medicine.category or 'N/A' }}</div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ medicine.stock|default(0) }}</div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${{ "%.2f"|format(medicine.price|float(0.0)) }}</div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${{ "%.2f"|format((medicine.stock|default(0)|int) * (medicine.price|float(0.0))) }}</div>
+                      </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                      <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                        {{ _('no_medicines_available') }}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div class="p-4 border-t flex justify-between items-center">
+              <div class="text-sm text-gray-600">
+                <span id="selectedCount">0</span> {{ _('items_selected') }}
+              </div>
+              <div class="space-x-3">
+                <button type="button" id="cancelSelection" class="btn-ghost">
+                  {{ _('cancel') }}
+                </button>
+                <button type="button" id="confirmSelection" class="btn-primary">
+                  {{ _('select_medicines') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report Content -->
+      <div class="space-y-2">
+        <label for="report_content" class="block text-sm font-medium text-gray-700">{{ _('report_content') }}</label>
+        <textarea id="report_content" name="report_content" rows="4" 
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="{{ _('enter_report_content') }}"></textarea>
+      </div>
+
+      <!-- Report Options -->
+      <div class="space-y-4 pt-2">
+        <h3 class="text-lg font-medium text-gray-900 border-b pb-2">{{ _('report_options') }}</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div class="flex items-start">
+              <div class="flex items-center h-5">
+                <input id="include_stock" name="include_stock" type="checkbox" 
+                       class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500" checked>
+              </div>
+              <div class="ml-3 text-sm">
+                <label for="include_stock" class="font-medium text-gray-700">{{ _('include_stock_info') }}</label>
+                <p class="text-gray-500">{{ _('include_stock_info_description') }}</p>
+              </div>
+            </div>
+            
+            <div class="flex items-start">
+              <div class="flex items-center h-5">
+                <input id="include_pricing" name="include_pricing" type="checkbox" 
+                       class="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500" checked>
+              </div>
+              <div class="ml-3 text-sm">
+                <label for="include_pricing" class="font-medium text-gray-700">{{ _('include_pricing_info') }}</label>
+                <p class="text-gray-500">{{ _('include_pricing_info_description') }}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="space-y-2">
+            <label for="export_format" class="block text-sm font-medium text-gray-700">{{ _('export_format') }}</label>
+            <select id="export_format" name="export_format" 
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+              <option value="pdf">PDF</option>
+              <option value="excel">Excel</option>
+              <option value="csv">CSV</option>
+            </select>
+            <p class="text-sm text-gray-500 mt-1">{{ _('select_export_format') }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="flex justify-end space-x-3 pt-6">
+        <a href="{{ url_for('reports.reports') }}" class="btn-ghost">
+          {{ _('cancel') }}
+        </a>
+        <button type="submit" class="btn-primary">
+          {{ _('generate_report') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Hidden input for selected medicines -->
+<input type="hidden" name="selected_medicines" id="selectedMedicinesInput" value="">
+
+<!-- Medicine Item Template (Hidden) -->
+<template id="selectedMedicineTemplate">
+  <div class="flex items-center justify-between p-3 bg-white border rounded-lg shadow-sm">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-medium text-gray-900 truncate">{name}</h4>
+        <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-cyan-100 text-cyan-800">
+          {stock} {{ _('in_stock') }}
+        </span>
+      </div>
+      <div class="mt-1 flex items-center text-sm text-gray-500">
+        <span class="mr-3">{{ _('price') }}: <span class="font-medium">${price}</span></span>
+        <span class="mr-3">•</span>
+        <span class="mr-3">{{ _('value') }}: <span class="font-medium">${value}</span></span>
+        <span class="mr-3">•</span>
+        <span class="text-gray-400">{{ _('category') }}: {category}</span>
+      </div>
+    </div>
+    <button type="button" class="ml-4 text-red-500 hover:text-red-700" data-id="{id}" title="{{ _('remove') }}">
+      <span class="material-symbols-outlined">delete</span>
+    </button>
+  </div>
+</template>
+
+<!-- No Selected Medicines Template -->
+<template id="noMedicinesTemplate">
+  <div class="text-center py-4">
+    <span class="material-symbols-outlined text-gray-300 text-4xl">inventory_2</span>
+    <p class="mt-2 text-sm text-gray-500">{{ _('no_medicines_selected') }}</p>
+    <button type="button" id="browseMedicines" class="mt-2 text-sm text-cyan-600 hover:text-cyan-800">
+      {{ _('browse_medicines') }}
+    </button>
+  </div>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // ── DOM Elements ───────────────────────────────────────────────────────────
+  const showAllMedicinesBtn   = document.getElementById('showAllMedicines');
+  const medicineModal         = document.getElementById('medicineModal');
+  const closeModalBtn         = document.getElementById('closeModal');
+  const cancelSelectionBtn    = document.getElementById('cancelSelection');
+  const confirmSelectionBtn   = document.getElementById('confirmSelection');
+  const medicineList          = document.getElementById('medicineList');
+  const modalSearch           = document.getElementById('modalSearch');
+  const medicineSearch        = document.getElementById('medicineSearch');
+  const selectedMedicinesEl   = document.getElementById('selectedMedicines');
+  const selectedMedicinesInput= document.getElementById('selectedMedicinesInput');
+  const statsSummary          = document.getElementById('statsSummary');
+  const totalItemsEl          = document.getElementById('totalItems');
+  const totalStockEl          = document.getElementById('totalStock');
+  const totalValueEl          = document.getElementById('totalValue');
+  const selectedCountEl       = document.getElementById('selectedCount');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  // Set of selected medicine IDs
+  const selectedMedicineIds = new Set();
+
+  // Map of all medicines extracted from the server-rendered table
+  const allMedicinesMap = {};
+
+  // ── Initialise ─────────────────────────────────────────────────────────────
+  function init() {
+    // Extract medicine data from the server-rendered modal rows
+    document.querySelectorAll('.medicine-item').forEach(row => {
+      const id = row.dataset.id;
+      if (!id) return;
+      allMedicinesMap[id] = {
+        id,
+        name:     (row.querySelector('td:nth-child(2) .text-gray-900') || {}).textContent || '',
+        category: (row.querySelector('td:nth-child(3) .text-gray-500') || {}).textContent || '',
+        stock:    parseInt((row.querySelector('td:nth-child(4) .text-gray-900') || {}).textContent) || 0,
+        price:    parseFloat(((row.querySelector('td:nth-child(5) .text-gray-900') || {}).textContent || '').replace('$','')) || 0,
+        value:    parseFloat(((row.querySelector('td:nth-child(6) .text-gray-900') || {}).textContent || '').replace('$','')) || 0,
+      };
+    });
+
+    // Restore previously saved selection (e.g. after validation failure)
+    const saved = selectedMedicinesInput.value;
+    if (saved) {
+      try {
+        JSON.parse(saved).forEach(id => selectedMedicineIds.add(id));
+        renderSelectedMedicines();
+        updateStats();
+      } catch(e) { /* ignore malformed JSON */ }
+    }
+
+    setupEventListeners();
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  function setupEventListeners() {
+    if (showAllMedicinesBtn) showAllMedicinesBtn.addEventListener('click', openModal);
+
+    if (closeModalBtn)    closeModalBtn.addEventListener('click', closeModal);
+    if (cancelSelectionBtn) cancelSelectionBtn.addEventListener('click', closeModal);
+    if (confirmSelectionBtn) confirmSelectionBtn.addEventListener('click', confirmSelection);
+
+    if (modalSearch)    modalSearch.addEventListener('input', filterModalRows);
+    if (medicineSearch) medicineSearch.addEventListener('input', filterSelectedList);
+
+    // Toggle checkbox when clicking a medicine row in the modal
+    if (medicineList) {
+      medicineList.addEventListener('click', function(e) {
+        const row = e.target.closest('.medicine-item');
+        if (!row) return;
+        const cb = row.querySelector('input[type="checkbox"]');
+        if (cb) {
+          cb.checked = !cb.checked;
+          row.classList.toggle('bg-cyan-50', cb.checked);
+          if (selectedCountEl) {
+            selectedCountEl.textContent =
+              medicineList.querySelectorAll('input[type="checkbox"]:checked').length;
+          }
+        }
+      });
+    }
+
+    // Remove medicine from selected list
+    if (selectedMedicinesEl) {
+      selectedMedicinesEl.addEventListener('click', function(e) {
+        const btn = e.target.closest('button[data-id]');
+        if (!btn) return;
+        selectedMedicineIds.delete(btn.dataset.id);
+        renderSelectedMedicines();
+        updateStats();
+      });
+    }
+
+    // "Browse medicines" link inside the empty-state template
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.id === 'browseMedicines') openModal();
+    });
+
+    // Report type radio changes
+    document.querySelectorAll('input[name="report_type"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        console.log('Report type changed to:', this.value);
+      });
+    });
+  }
+
+  // ── Modal helpers ──────────────────────────────────────────────────────────
+  function openModal() {
+    if (!medicineModal) return;
+    if (modalSearch) { modalSearch.value = ''; filterModalRows(); }
+    // Mark already-selected rows
+    document.querySelectorAll('.medicine-item').forEach(row => {
+      const cb = row.querySelector('input[type="checkbox"]');
+      const sel = selectedMedicineIds.has(row.dataset.id);
+      if (cb) cb.checked = sel;
+      row.classList.toggle('bg-cyan-50', sel);
+    });
+    if (selectedCountEl) selectedCountEl.textContent = selectedMedicineIds.size;
+    medicineModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    if (!medicineModal) return;
+    medicineModal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  function confirmSelection() {
+    // Read checked checkboxes from the modal
+    selectedMedicineIds.clear();
+    document.querySelectorAll('.medicine-item input[type="checkbox"]:checked').forEach(cb => {
+      const row = cb.closest('.medicine-item');
+      if (row && row.dataset.id) selectedMedicineIds.add(row.dataset.id);
+    });
+    renderSelectedMedicines();
+    updateStats();
+    closeModal();
+  }
+
+  // ── Filtering ──────────────────────────────────────────────────────────────
+  function filterModalRows() {
+    const term = (modalSearch ? modalSearch.value : '').toLowerCase();
+    document.querySelectorAll('.medicine-item').forEach(row => {
+      const name = ((row.querySelector('td:nth-child(2) .text-gray-900') || {}).textContent || '').toLowerCase();
+      const cat  = ((row.querySelector('td:nth-child(3) .text-gray-500') || {}).textContent || '').toLowerCase();
+      row.style.display = (!term || name.includes(term) || cat.includes(term)) ? '' : 'none';
+    });
+  }
+
+  function filterSelectedList() {
+    const term = (medicineSearch ? medicineSearch.value : '').toLowerCase();
+    if (!selectedMedicinesEl) return;
+    selectedMedicinesEl.querySelectorAll('[data-id]').forEach(card => {
+      const name = (card.querySelector('h4') || {}).textContent || '';
+      card.style.display = (!term || name.toLowerCase().includes(term)) ? '' : 'none';
+    });
+  }
+
+  // ── Render selected medicines in the form ──────────────────────────────────
+  function renderSelectedMedicines() {
+    if (!selectedMedicinesEl) return;
+
+    // Persist the selection as a JSON array in the hidden input
+    selectedMedicinesInput.value = JSON.stringify(Array.from(selectedMedicineIds));
+
+    if (selectedMedicineIds.size === 0) {
+      // Show the empty-state template
+      const tmpl = document.getElementById('noMedicinesTemplate');
+      selectedMedicinesEl.innerHTML = tmpl
+        ? tmpl.innerHTML
+        : '<p class="text-sm text-gray-500">No medicines selected</p>';
+      if (statsSummary) statsSummary.classList.add('hidden');
+      return;
+    }
+
+    selectedMedicinesEl.innerHTML = '';
+    const cardTmpl = document.getElementById('selectedMedicineTemplate');
+
+    selectedMedicineIds.forEach(id => {
+      const med = allMedicinesMap[id];
+      if (!med) return;
+
+      let html;
+      if (cardTmpl) {
+        // Clone the <template> element and fill in placeholders
+        const clone = cardTmpl.content.cloneNode(true);
+        const el = document.createElement('div');
+        el.appendChild(clone);
+        html = el.innerHTML
+          .replace(/\{name\}/g,     escHtml(med.name))
+          .replace(/\{stock\}/g,    med.stock)
+          .replace(/\{price\}/g,    med.price.toFixed(2))
+          .replace(/\{value\}/g,    med.value.toFixed(2))
+          .replace(/\{category\}/g, escHtml(med.category))
+          .replace(/\{id\}/g,       escHtml(id));
+      } else {
+        html = `<div class="flex items-center justify-between p-3 bg-white border rounded-lg shadow-sm" data-id="${escHtml(id)}">
+          <div>
+            <h4 class="text-sm font-medium text-gray-900">${escHtml(med.name)}</h4>
+            <p class="text-xs text-gray-500">${med.stock} in stock &middot; $${med.price.toFixed(2)}</p>
+          </div>
+          <button type="button" data-id="${escHtml(id)}" class="text-red-500 hover:text-red-700" title="Remove">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>`;
+      }
+      const wrapper = document.createElement('div');
+      wrapper.setAttribute('data-id', id);
+      wrapper.innerHTML = html;
+      selectedMedicinesEl.appendChild(wrapper);
+    });
+
+    if (statsSummary) statsSummary.classList.remove('hidden');
+  }
+
+  // ── Stats update ───────────────────────────────────────────────────────────
+  function updateStats() {
+    let totalItems = 0, totalStock = 0, totalValue = 0;
+    selectedMedicineIds.forEach(id => {
+      const med = allMedicinesMap[id];
+      if (!med) return;
+      totalItems++;
+      totalStock += med.stock;
+      totalValue += med.value;
+    });
+    if (totalItemsEl) totalItemsEl.textContent = totalItems;
+    if (totalStockEl) totalStockEl.textContent = totalStock;
+    if (totalValueEl) totalValueEl.textContent = '$' + totalValue.toFixed(2);
+  }
+
+  // ── Utility ────────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  init();
+});
+</script>
+{% endblock %}
+
